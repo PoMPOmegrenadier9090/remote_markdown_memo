@@ -1,0 +1,2 @@
+# obsidian_remote_memo
+ブラウザでmarkdownメモを記述し，クラウドに送信するためのアプリ
