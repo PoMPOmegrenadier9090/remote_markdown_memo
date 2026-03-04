@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  /* VS Code Dark+ テーマ風カラーパレット */
+  --color-bg-primary: #1e1e1e;        /* エディタ背景 */
+  --color-bg-secondary: #252526;      /* サイドバー背景 */
+  --color-bg-tertiary: #2d2d2d;       /* ツールバー・ステータスバー */
+  --color-bg-active: #37373d;         /* アクティブアイテム */
+  --color-bg-hover: #2a2d2e;          /* ホバー */
+  --color-bg-input: #3c3c3c;          /* 入力フィールド */
+
+  --color-border: #3e3e42;            /* ボーダー */
+  --color-border-active: #007acc;     /* アクティブボーダー */
+
+  --color-text-primary: #cccccc;      /* プライマリテキスト */
+  --color-text-secondary: #969696;    /* セカンダリテキスト */
+  --color-text-muted: #6a6a6a;        /* ミュートテキスト */
+  --color-text-accent: #4fc1ff;       /* アクセントテキスト */
+
+  --color-accent: #007acc;            /* アクセントカラー（青） */
+  --color-accent-hover: #1a8ad4;      /* アクセントホバー */
+  --color-success: #4ec9b0;           /* 成功（緑） */
+  --color-warning: #cca700;           /* 警告（黄） */
+  --color-error: #f44747;             /* エラー（赤） */
+
+  --sidebar-width: 260px;
+  --toolbar-height: 36px;
+  --statusbar-height: 24px;
+}
+
+@theme inline {
+  --color-background: var(--color-bg-primary);
+  --color-foreground: var(--color-text-primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: 13px;
+}
+
+/* スクロールバーのカスタマイズ（VS Code風） */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(121, 121, 121, 0.4);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(121, 121, 121, 0.7);
+}
+
+/* ユーティリティ */
+.truncate-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
