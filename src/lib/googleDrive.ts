@@ -85,6 +85,7 @@ export async function listDriveFiles(
       });
 
       const fileList = response.data.files ?? [];
+      console.log(`[Drive BFS] Folder: "${parentPath || "(root)"}(${folderId})" → ${fileList.length} items found`);
       for (const file of fileList) {
         if (!file.id || !file.name) continue;
 
@@ -94,12 +95,14 @@ export async function listDriveFiles(
 
         if (file.mimeType === FOLDER_MIME_TYPE) {
           // フォルダ: パスを記録してキューに追加
+          console.log(`[Drive BFS]   📁 Folder: ${relativePath} (id: ${file.id})`);
           folderPathMap.set(file.id, relativePath);
           allFolderPaths.push(relativePath);
           queue.push(file.id);
         } else {
           // ファイル: .md ファイルのみ対象
           if (file.name.endsWith(".md")) {
+            console.log(`[Drive BFS]   📄 File: ${relativePath}`);
             files.push({
               id: file.id,
               name: file.name,
@@ -115,6 +118,7 @@ export async function listDriveFiles(
     } while (pageToken);
   }
 
+  console.log(`[Drive BFS] Total: ${files.length} files, ${allFolderPaths.length} folders`);
   return { files, folderPaths: allFolderPaths };
 }
 
