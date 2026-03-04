@@ -68,7 +68,7 @@ export function Toolbar({
           )}
         </button>
         <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-          Obsidian Remote Memo
+          Remote Markdown Memo
         </span>
       </div>
 
