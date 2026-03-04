@@ -44,25 +44,36 @@ export function createDriveClient(accessToken: string): drive_v3.Drive {
 }
 
 /**
+ * listDriveFilesの戻り値
+ */
+export interface DriveListResult {
+  /** .mdファイル一覧 */
+  files: DriveFileWithPath[];
+  /** フォルダの相対パス一覧（空フォルダ含む） */
+  folderPaths: string[];
+}
+
+/**
  * 指定フォルダ配下の全ファイルとフォルダを再帰的に取得する
  * フラットなリストで返す（パス情報付き）
  */
 export async function listDriveFiles(
   drive: drive_v3.Drive,
   rootFolderId: string,
-): Promise<DriveFileWithPath[]> {
-  const result: DriveFileWithPath[] = [];
+): Promise<DriveListResult> {
+  const files: DriveFileWithPath[] = [];
+  const allFolderPaths: string[] = [];
 
   // フォルダID → 相対パスのマッピング
-  const folderPaths = new Map<string, string>();
-  folderPaths.set(rootFolderId, "");
+  const folderPathMap = new Map<string, string>();
+  folderPathMap.set(rootFolderId, "");
 
   // BFSで再帰的に探索
   const queue = [rootFolderId];
 
   while (queue.length > 0) {
     const folderId = queue.shift()!;
-    const parentPath = folderPaths.get(folderId) ?? "";
+    const parentPath = folderPathMap.get(folderId) ?? "";
 
     let pageToken: string | undefined;
     do {
@@ -73,8 +84,8 @@ export async function listDriveFiles(
         pageToken,
       });
 
-      const files = response.data.files ?? [];
-      for (const file of files) {
+      const fileList = response.data.files ?? [];
+      for (const file of fileList) {
         if (!file.id || !file.name) continue;
 
         const relativePath = parentPath
@@ -83,12 +94,13 @@ export async function listDriveFiles(
 
         if (file.mimeType === FOLDER_MIME_TYPE) {
           // フォルダ: パスを記録してキューに追加
-          folderPaths.set(file.id, relativePath);
+          folderPathMap.set(file.id, relativePath);
+          allFolderPaths.push(relativePath);
           queue.push(file.id);
         } else {
           // ファイル: .md ファイルのみ対象
           if (file.name.endsWith(".md")) {
-            result.push({
+            files.push({
               id: file.id,
               name: file.name,
               mimeType: file.mimeType ?? "text/markdown",
@@ -103,7 +115,7 @@ export async function listDriveFiles(
     } while (pageToken);
   }
 
-  return result;
+  return { files, folderPaths: allFolderPaths };
 }
 
 /**

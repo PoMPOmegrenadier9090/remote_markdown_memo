@@ -20,6 +20,7 @@ import {
   readFile,
   writeFile,
   deleteEntry,
+  createDirectory,
   ensureWorkspace,
   getFileTree,
 } from "@/lib/fileSystem";
@@ -57,13 +58,14 @@ export interface PushResult {
  */
 export async function syncMetadata(accessToken: string): Promise<{
   driveFiles: DriveFileWithPath[];
+  folderPaths: string[];
   newFiles: string[];
   deletedFiles: string[];
   updatedFiles: string[];
 }> {
   const drive = createDriveClient(accessToken);
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID ?? "";
-  const driveFiles = await listDriveFiles(drive, folderId);
+  const { files: driveFiles, folderPaths } = await listDriveFiles(drive, folderId);
   let metadata = await loadSyncMetadata();
 
   const newFiles: string[] = [];
@@ -123,7 +125,7 @@ export async function syncMetadata(accessToken: string): Promise<{
   metadata.driveRootFolderId = folderId;
   await saveSyncMetadata(metadata);
 
-  return { driveFiles, newFiles, deletedFiles, updatedFiles };
+  return { driveFiles, folderPaths, newFiles, deletedFiles, updatedFiles };
 }
 
 /**
@@ -137,7 +139,7 @@ export async function pullFiles(accessToken: string): Promise<PullResult> {
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID ?? "";
 
   // 1. メタデータ同期
-  const { driveFiles } = await syncMetadata(accessToken);
+  const { driveFiles, folderPaths } = await syncMetadata(accessToken);
   let metadata = await loadSyncMetadata();
 
   const created: string[] = [];
@@ -145,7 +147,16 @@ export async function pullFiles(accessToken: string): Promise<PullResult> {
   const deleted: string[] = [];
   const conflicts: ConflictInfo[] = [];
 
-  // 2. 各Driveファイルの本文をダウンロード
+  // 2. Driveのフォルダ構造をローカルに作成（空フォルダ含む）
+  for (const folderPath of folderPaths) {
+    try {
+      await createDirectory(folderPath);
+    } catch (err) {
+      console.error(`Failed to create directory ${folderPath}:`, err instanceof Error ? err.message : "Unknown error");
+    }
+  }
+
+  // 3. 各Driveファイルの本文をダウンロード
   const driveFilesMap = new Map(driveFiles.map((f) => [f.relativePath, f]));
 
   for (const [filePath, fileMeta] of Object.entries(metadata.files)) {
@@ -280,6 +291,16 @@ export async function pushFiles(accessToken: string): Promise<PushResult> {
     }
   }
 
+  // ローカルの空フォルダをDrive上にも作成
+  const allLocalDirs = flattenDirTree(localFiles);
+  for (const dirPath of allLocalDirs) {
+    try {
+      await ensureDriveFolderPath(drive, folderId, dirPath);
+    } catch (err) {
+      console.error(`Failed to push directory ${dirPath}:`, err instanceof Error ? err.message : "Unknown error");
+    }
+  }
+
   metadata.lastSyncedAt = new Date().toISOString();
   await saveSyncMetadata(metadata);
 
@@ -359,6 +380,26 @@ async function ensureParentFolders(
 }
 
 /**
+ * ディレクトリパスに応じてDrive上にフォルダ階層を作成する
+ * 例: "notes/daily" → notes, notes/daily を作成
+ * ensureParentFoldersとは異なり、パスの全要素をフォルダとして扱う
+ */
+async function ensureDriveFolderPath(
+  drive: drive_v3.Drive,
+  rootFolderId: string,
+  dirPath: string,
+): Promise<string> {
+  const parts = dirPath.split("/");
+
+  let currentParentId = rootFolderId;
+  for (const folderName of parts) {
+    currentParentId = await ensureDriveFolder(drive, currentParentId, folderName);
+  }
+
+  return currentParentId;
+}
+
+/**
  * FileEntryツリーをフラットなパスリストに展開する
  * .mdファイルのパスのみ返す
  */
@@ -369,6 +410,23 @@ function flattenFileTree(entries: FileEntry[]): string[] {
       result.push(entry.path);
     } else if (entry.type === "directory" && entry.children) {
       result.push(...flattenFileTree(entry.children));
+    }
+  }
+  return result;
+}
+
+/**
+ * FileEntryツリーからディレクトリパスをフラットに展開する
+ * 空フォルダも含む全ディレクトリを返す
+ */
+function flattenDirTree(entries: FileEntry[]): string[] {
+  const result: string[] = [];
+  for (const entry of entries) {
+    if (entry.type === "directory") {
+      result.push(entry.path);
+      if (entry.children) {
+        result.push(...flattenDirTree(entry.children));
+      }
     }
   }
   return result;

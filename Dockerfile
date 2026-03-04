@@ -1,3 +1,14 @@
+## ---- 開発ステージ ----
+FROM node:20-alpine AS dev
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# 開発用: ソースはvolumeマウントされるためCOPY不要
+CMD ["npm", "run", "dev", "--", "-p", "3000"]
+
 ## ---- ビルドステージ ----
 FROM node:20-alpine AS builder
 
