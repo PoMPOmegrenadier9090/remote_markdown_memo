@@ -1,5 +1,6 @@
 services:
-  app:
+  remote-memo:
+    container_name: remote-memo
     build: .
     ports:
       - "6666:6666"
