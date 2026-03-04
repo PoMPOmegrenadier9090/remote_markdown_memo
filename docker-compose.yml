@@ -2,17 +2,14 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "6666:6666"
     volumes:
-      - .:/app                          # ソースコード（ホットリロード用）
-      - /app/node_modules               # node_modulesはコンテナ内のみ
-      - /app/.next                      # .nextビルドキャッシュもコンテナ内
       - workspace_data:/app/workspace   # 同期ファイル永続化
     env_file:
-      - .env.local
+      - .env.production
     environment:
-      - NODE_ENV=development
-      - WATCHPACK_POLLING=true          # Docker内でのファイル変更検知
+      - NODE_ENV=production
+    restart: unless-stopped
 
 volumes:
   workspace_data:

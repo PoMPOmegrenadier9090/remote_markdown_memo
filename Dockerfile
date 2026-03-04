@@ -1,24 +1,38 @@
-FROM node:20-alpine
+## ---- ビルドステージ ----
+FROM node:20-alpine AS builder
 
 WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+## ---- 本番ステージ ----
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
 
 # 非rootユーザーの作成
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# 依存関係のインストール（キャッシュ最適化）
-COPY package.json package-lock.json ./
-RUN npm ci
+# ビルド成果物のコピー
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# ソースコードのコピー
-COPY . .
-
-# workspace ディレクトリの作成（非rootユーザーが書き込み可能に）
+# workspace ディレクトリの作成
 RUN mkdir -p /app/workspace && chown -R nextjs:nodejs /app/workspace
 
-# 非rootユーザーに切り替え
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 6666
 
-CMD ["npm", "run", "dev"]
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=6666
+
+CMD ["node", "server.js"]
