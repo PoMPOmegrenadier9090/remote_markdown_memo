@@ -235,7 +235,7 @@ export async function getDriveFileMetadata(
 }
 
 /**
- * ファイルを削除する（ゴミ箱に移動）
+ * ファイルまたはフォルダを削除する（ゴミ箱に移動）
  */
 export async function deleteDriveFile(
   drive: drive_v3.Drive,
@@ -245,4 +245,32 @@ export async function deleteDriveFile(
     fileId,
     requestBody: { trashed: true },
   });
+}
+
+/**
+ * パスからDriveフォルダを検索してIDを返す
+ * 例: "folder1/subfolder1" → ルートフォルダから folder1 → subfolder1 を辿る
+ */
+export async function findDriveFolderByPath(
+  drive: drive_v3.Drive,
+  rootFolderId: string,
+  folderPath: string,
+): Promise<string | null> {
+  const parts = folderPath.split("/");
+  let currentParentId = rootFolderId;
+
+  for (const folderName of parts) {
+    const response = await drive.files.list({
+      q: `'${escapeDriveQuery(currentParentId)}' in parents and name = '${escapeDriveQuery(folderName)}' and mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`,
+      fields: "files(id)",
+    });
+
+    if (!response.data.files || response.data.files.length === 0) {
+      return null;
+    }
+
+    currentParentId = response.data.files[0].id!;
+  }
+
+  return currentParentId;
 }

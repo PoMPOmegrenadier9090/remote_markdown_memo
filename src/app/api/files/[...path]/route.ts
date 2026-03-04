@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { readFile, writeFile, deleteEntry, renameEntry, FileSystemError } from "@/lib/fileSystem";
 import { loadSyncMetadata, saveSyncMetadata, removeFileMetadata } from "@/lib/syncMetadata";
 import { getAccessToken } from "@/lib/auth";
-import { createDriveClient, deleteDriveFile } from "@/lib/googleDrive";
+import { createDriveClient, deleteDriveFile, findDriveFolderByPath } from "@/lib/googleDrive";
 
 /** ファイルサイズ上限 (10MB) */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -142,16 +142,32 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     try {
       const metadata = await loadSyncMetadata();
       const fileMeta = metadata.files[filePath];
+      const accessToken = await getAccessToken();
 
       if (fileMeta?.driveFileId) {
-        const accessToken = await getAccessToken();
+        // ファイルの場合: driveFileIdで直接削除
         if (accessToken) {
           const drive = createDriveClient(accessToken);
           await deleteDriveFile(drive, fileMeta.driveFileId);
         }
+      } else if (accessToken) {
+        // フォルダの場合: パスからDriveフォルダIDを検索して削除
+        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID ?? "";
+        const drive = createDriveClient(accessToken);
+        const driveFolderId = await findDriveFolderByPath(drive, folderId, filePath);
+        if (driveFolderId) {
+          await deleteDriveFile(drive, driveFolderId);
+        }
       }
 
-      const updated = removeFileMetadata(metadata, filePath);
+      // フォルダ内ファイルのメタデータも削除
+      const prefix = filePath + "/";
+      let updated = removeFileMetadata(metadata, filePath);
+      for (const key of Object.keys(updated.files)) {
+        if (key.startsWith(prefix)) {
+          updated = removeFileMetadata(updated, key);
+        }
+      }
       await saveSyncMetadata(updated);
     } catch {
       // メタデータ/Drive更新失敗はファイル削除自体に影響させない
