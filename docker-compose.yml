@@ -10,6 +10,7 @@ services:
       - .env.production
     environment:
       - NODE_ENV=production
+      - WATCHPACK_POLLING=true          # Docker内でのファイル変更検知
     restart: unless-stopped
 
 volumes:
