@@ -36,7 +36,3 @@ docker compose up -d
 # ブラウザでアクセス
 open http://localhost:3000
 ```
-
-## ライセンス
-
-MIT
